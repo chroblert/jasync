@@ -27,8 +27,8 @@ type asyncTask struct {
 	StoreResult bool // 220509: 决定是否存储结果
 }
 
-// async 异步执行对象
-type async struct {
+// Async 异步执行对象
+type Async struct {
 	taskAllTotal    int // 总共有多少个任务
 	taskNeedDoCount int // 需要执行的任务数量
 	taskDoingCount  int // 正在执行的任务数量
@@ -48,16 +48,16 @@ type async struct {
 // New 创建一个新的异步执行对象
 //
 // verbose: 是否显示进度条,默认显示
-func New(verbose ...bool) async {
+func New(verbose ...bool) Async {
 	if len(verbose) == 0 {
-		return async{
+		return Async{
 			tasks:       make(map[string]*asyncTask),
 			mu:          new(sync.RWMutex),
 			tasksResult: make(map[string][]interface{}),
 			verbose:     true,
 		}
 	}
-	return async{
+	return Async{
 		tasks:       make(map[string]*asyncTask),
 		mu:          new(sync.RWMutex),
 		tasksResult: make(map[string][]interface{}),
@@ -66,39 +66,39 @@ func New(verbose ...bool) async {
 }
 
 // GetTaskAllTotal 获取总共的任务数
-func (a *async) GetTaskAllTotal() int {
+func (a *Async) GetTaskAllTotal() int {
 	return a.taskAllTotal
 }
 
 // GetTaskCurAllTotal 获取最近一批总共的任务数
-func (a *async) GetTaskCurAllTotal() int {
+func (a *Async) GetTaskCurAllTotal() int {
 	return a.taskCurAllTotal
 }
 
 // GetTaskNeedDoCount 获取需要执行的任务数量
-func (a *async) GetTaskNeedDoCount() int {
+func (a *Async) GetTaskNeedDoCount() int {
 	return a.taskNeedDoCount
 }
 
 // GetTaskCurNeedDoCount 获取当前批次需要执行的任务数量
-func (a *async) GetTaskCurNeedDoCount() int {
+func (a *Async) GetTaskCurNeedDoCount() int {
 	return a.taskNeedDoCount
 }
 
-func (a *async) addTaskDoingCount() {
+func (a *Async) addTaskDoingCount() {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.taskDoingCount++
 }
 
-func (a *async) subTaskDoingCount() {
+func (a *Async) subTaskDoingCount() {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.taskDoingCount--
 }
 
 // 若传进来的值小于1，则使用默认值
-func (a *async) wait(taskParaCountMaxLimit int) {
+func (a *Async) wait(taskParaCountMaxLimit int) {
 	if taskParaCountMaxLimit < 1 {
 		taskParaCountMaxLimit = jasyncConf.TaskMaxLimit
 	}
@@ -139,7 +139,7 @@ type taskStatus struct {
 }
 
 // 将毫秒级时间戳转换为时间字符串2006-01-02 15:04:05.000
-func (a *async) timeStampToStr(nanotimestamp int64) string {
+func (a *Async) timeStampToStr(nanotimestamp int64) string {
 	if nanotimestamp == 0 {
 		return "0"
 	}
@@ -151,7 +151,7 @@ func (a *async) timeStampToStr(nanotimestamp int64) string {
 // verbose: 详细模式，显示任务的开始结束时间
 // status: 显示指定状态的任务
 // taskName: 显示某任务的状态
-func (a *async) PrintAllTaskStatus(verbose bool) {
+func (a *Async) PrintAllTaskStatus(verbose bool) {
 	// TODO 这里应该可以使用协程并发输出
 	for k, v := range a.tasks {
 		jasyncLog.Infof("%-5s Status:%-10s, Begin:%.24s ,End:%.24s \n", k, a.getDspByCode(v.TaskStatus.taskStatus), a.timeStampToStr(v.TaskStatus.taskBegTime), a.timeStampToStr(v.TaskStatus.taskEndTime))
@@ -160,31 +160,38 @@ func (a *async) PrintAllTaskStatus(verbose bool) {
 }
 
 // PrintTaskStatus 获取执行状态
+//
 // verbose: 详细模式，显示任务的开始结束时间
+//
 // status: 显示指定状态的任务
+//
 // taskName: 显示某任务的状态
-func (a *async) PrintTaskStatus(taskName string, verbose bool) {
+func (a *Async) PrintTaskStatus(taskName string, verbose bool) {
 	k := taskName
 	v := a.tasks[k]
-	jasyncLog.Infof("%-5s Status:%-10s, Begin:%.24s ,End:%.24s \n", k, a.getDspByCode(v.TaskStatus.taskStatus), a.timeStampToStr(v.TaskStatus.taskBegTime), a.timeStampToStr(v.TaskStatus.taskEndTime))
+	if v != nil {
+		jasyncLog.Infof("%-5s Status:%-10s, Begin:%.24s ,End:%.24s \n", k, a.getDspByCode(v.TaskStatus.taskStatus), a.timeStampToStr(v.TaskStatus.taskBegTime), a.timeStampToStr(v.TaskStatus.taskEndTime))
+	} else {
+		jasyncLog.Infof("no such task:%s \n", k)
+	}
 }
 
 // GetTasksResult 获取所有任务的执行结果
-func (a *async) GetTasksResult() map[string][]interface{} {
+func (a *Async) GetTasksResult() map[string][]interface{} {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.tasksResult
 }
 
 // GetTaskResult 获取任务的某个执行结果
-func (a *async) GetTaskResult(taskName string) []interface{} {
+func (a *Async) GetTaskResult(taskName string) []interface{} {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.tasksResult[taskName]
 }
 
 // 等待直到全部任务执行完成
-func (a *async) Wait() {
+func (a *Async) Wait() {
 	var tmpPreVal int
 	tmpPreVal = -1
 	for {
@@ -229,7 +236,7 @@ func (a *async) Wait() {
 }
 
 // 根据code获取对应的状态描述
-func (a *async) getDspByCode(code int) string {
+func (a *Async) getDspByCode(code int) string {
 	switch code {
 	case 0:
 		return "init"
@@ -246,16 +253,19 @@ func (a *async) getDspByCode(code int) string {
 // Add 添加异步执行任务
 //
 // name 任务名，若不填，则生成UUID
+//
 // handler 任务执行函数，将需要被执行的函数导入到程序中
+//
 // params 任务执行函数所需要的参数
-func (a *async) Add(name string, funcHandler interface{}, printHandler interface{}, params ...interface{}) (bool, error) {
+func (a *Async) Add(name string, funcHandler interface{}, printHandler interface{}, params ...interface{}) (task_name string, b_success bool, err error) {
 	if name == "" {
 		var err2 error
 		name, err2 = uuid.GenerateUUID()
 		if err2 != nil {
-			return false, err2
+			return "", false, err2
 		}
 	}
+	task_name = name
 	task := new(asyncTask)
 	// 用来确保key的唯一性
 	a.mu.RLock()
@@ -263,7 +273,7 @@ func (a *async) Add(name string, funcHandler interface{}, printHandler interface
 	_, ok := a.tasks[name]
 	a.mu.RUnlock()
 	if ok {
-		return false, fmt.Errorf(name + " 任务已存在!")
+		return task_name, false, fmt.Errorf(name + " 任务已存在!")
 	}
 	handlerValue := reflect.ValueOf(funcHandler)
 	// 判断传入的是否为Func类型
@@ -308,23 +318,27 @@ func (a *async) Add(name string, funcHandler interface{}, printHandler interface
 		a.taskAllTotal++
 		a.taskCurAllTotal++
 		a.mu.Unlock()
-		return true, nil
+		return task_name, true, nil
 	}
-	return false, fmt.Errorf(handlerValue.String() + " 不符合格式func(参数...)(返回...){}")
+	return task_name, false, fmt.Errorf(handlerValue.String() + " 不符合格式func(参数...)(返回...){}")
 }
 
 // AddR 添加异步执行任务,保存执行结果
+//
 // name 任务名，若不填，则生成UUID，结果返回时也将放在任务名中
+//
 // handler 任务执行函数，将需要被执行的函数导入到程序中
+//
 // params 任务执行函数所需要的参数
-func (a *async) AddR(name string, funcHandler interface{}, printHandler interface{}, params ...interface{}) (bool, error) {
+func (a *Async) AddR(name string, funcHandler interface{}, printHandler interface{}, params ...interface{}) (task_name string, b_success bool, err error) {
 	if name == "" {
 		var err2 error
 		name, err2 = uuid.GenerateUUID()
 		if err2 != nil {
-			return false, err2
+			return "", false, err2
 		}
 	}
+	task_name = name
 	task := new(asyncTask)
 	// 用来确保key的唯一性
 	a.mu.RLock()
@@ -332,7 +346,7 @@ func (a *async) AddR(name string, funcHandler interface{}, printHandler interfac
 	_, ok := a.tasks[name]
 	a.mu.RUnlock()
 	if ok {
-		return false, fmt.Errorf(name + " 任务已存在!")
+		return task_name, false, fmt.Errorf(name + " 任务已存在!")
 	}
 	handlerValue := reflect.ValueOf(funcHandler)
 	// 判断传入的是否为Func类型
@@ -349,7 +363,7 @@ func (a *async) AddR(name string, funcHandler interface{}, printHandler interfac
 					taskBegTime: 0,
 					taskEndTime: 0,
 				},
-				StoreResult: false,
+				StoreResult: true, //231111: false -> true
 			}
 		} else {
 			task = &asyncTask{
@@ -361,7 +375,7 @@ func (a *async) AddR(name string, funcHandler interface{}, printHandler interfac
 					taskBegTime: 0,
 					taskEndTime: 0,
 				},
-				StoreResult: false,
+				StoreResult: true, //231111: false -> true
 			}
 		}
 		a.mu.Lock()
@@ -377,15 +391,15 @@ func (a *async) AddR(name string, funcHandler interface{}, printHandler interfac
 		a.taskAllTotal++
 		a.taskCurAllTotal++
 		a.mu.Unlock()
-		return true, nil
+		return task_name, true, nil
 	}
-	return false, fmt.Errorf(handlerValue.String() + " 不符合格式func(参数...)(返回...){}")
+	return task_name, false, fmt.Errorf(handlerValue.String() + " 不符合格式func(参数...)(返回...){}")
 }
 
 // 非并发安全
 //
 // Run 任务执行函数
-func (a *async) Run(taskParaCountMaxLimit int) (bool, error) {
+func (a *Async) Run(taskParaCountMaxLimit int) (bool, error) {
 	if a.taskCurNeedDoCount < 1 {
 		return false, fmt.Errorf("没有需要执行的任务")
 	}
@@ -456,7 +470,7 @@ func (a *async) Run(taskParaCountMaxLimit int) (bool, error) {
 }
 
 // Clean 清空任务队列.
-func (a *async) Clean() {
+func (a *Async) Clean() {
 	a.taskNeedDoCount = 0
 	a.taskAllTotal = 0
 	a.taskCurNeedDoCount = 0

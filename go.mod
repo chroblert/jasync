@@ -1,4 +1,4 @@
-module jasync
+module github.com/chroblert/jasync
 
 go 1.21.3
 

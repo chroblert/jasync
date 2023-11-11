@@ -12,7 +12,7 @@ package jasync
 // 通过调用 GetTaskAllTotal() 来获取所有任务的数量
 import (
 	"fmt"
-	"github.com/chroblert/jgoutils/jlog"
+	"github.com/chroblert/jlog"
 	"reflect"
 	"sync"
 	"time"
@@ -28,7 +28,7 @@ type asyncTask struct {
 	TaskStatus *taskStatus
 }
 
-// async 异步执行对象
+// Async 异步执行对象
 type async struct {
 	taskAllTotal    int // 总共有多少个任务
 	taskNeedDoCount int // 需要执行的任务数量
