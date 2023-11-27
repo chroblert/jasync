@@ -407,11 +407,11 @@ func (a *Async) Run(taskParaCountMaxLimit int) (bool, error) {
 	// asyncTaskKey: name,asyncTaskVal:asyncTask
 	for asyncTaskKey, asyncTaskVal := range a.tasks {
 		// 如果任务状态为结束，则进入下一次循环
-		if asyncTaskVal.TaskStatus.taskStatus == 3 {
+		if asyncTaskVal.TaskStatus.taskStatus == STATUS_DONE {
 			continue
 		}
 		// 设置任务状态为1: queue
-		asyncTaskVal.TaskStatus.taskStatus = 2
+		asyncTaskVal.TaskStatus.taskStatus = STATUS_QUEUE
 		// 等待，直到当前开启的任务数小于配置中设定的最大任务数，则继续开启任务
 		a.wait(taskParaCountMaxLimit)
 		a.addTaskDoingCount()
@@ -420,14 +420,14 @@ func (a *Async) Run(taskParaCountMaxLimit int) (bool, error) {
 			taskResult := make([]interface{}, 0)
 			defer func(taskName2 string) {
 				// 设置任务的状态为结束
-				task.TaskStatus.taskStatus = 3
+				task.TaskStatus.taskStatus = STATUS_DONE
 				// 设置任务结束时间戳，毫秒
 				task.TaskStatus.taskEndTime = time.Now().UnixNano()
 				// 任务数量减一
 				a.subTaskDoingCount()
 			}(taskName)
 			// 设置任务状态为2: doing
-			task.TaskStatus.taskStatus = 2
+			task.TaskStatus.taskStatus = STATUS_DOING
 			// 设置任务开始时间戳，毫秒
 			task.TaskStatus.taskBegTime = time.Now().UnixNano()
 			// 调用传入的函数

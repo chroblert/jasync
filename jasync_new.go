@@ -335,7 +335,7 @@ func (a *async) Run(taskParaCountMaxLimit int) (chan map[string][]interface{}, b
 			taskResult := make([]interface{}, 0)
 			defer func(taskName2 string, resultChans chan map[string]interface{}) {
 				// 设置任务的状态为结束
-				task.TaskStatus.taskStatus = 3
+				task.TaskStatus.taskStatus = STATUS_DONE
 				// 设置任务结束时间戳，毫秒
 				task.TaskStatus.taskEndTime = time.Now().UnixNano()
 				// 任务数量减一
@@ -346,7 +346,7 @@ func (a *async) Run(taskParaCountMaxLimit int) (chan map[string][]interface{}, b
 				resultChans <- map[string]interface{}{"taskName": taskName2, "result": taskResult}
 			}(taskName, routinChans)
 			// 设置任务状态为1: scheduled
-			task.TaskStatus.taskStatus = 1
+			task.TaskStatus.taskStatus = STATUS_QUEUE
 			// 设置任务开始时间戳，毫秒
 			task.TaskStatus.taskBegTime = time.Now().UnixNano()
 			// 调用传入的函数
