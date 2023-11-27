@@ -3,6 +3,7 @@ package jasync
 import (
 	"context"
 	"fmt"
+	"github.com/chroblert/jlog"
 	"github.com/hashicorp/go-uuid"
 	"golang.org/x/sync/semaphore"
 	"reflect"
@@ -19,6 +20,8 @@ type AsyncRealtime struct {
 	//
 	wg       *sync.WaitGroup
 	taskName string
+	// handler
+	HandlerValues []reflect.Value
 }
 
 // New 创建一个新的异步执行对象
@@ -46,7 +49,7 @@ func NewAR(count int64, verbose ...bool) *AsyncRealtime {
 //		taskBegTime int64 // 任务开始时间
 //		taskEndTime int64 // 任务结束时间
 //	}
-func (ar *AsyncRealtime) Wait2() {
+func (ar *AsyncRealtime) Wait() {
 	ar.wg.Wait()
 }
 func (ar *AsyncRealtime) AddAndRun(name string, funcHandler interface{}, printHandler interface{}, params ...interface{}) (task_name string, b_success bool, err error) {
@@ -109,4 +112,136 @@ func (ar *AsyncRealtime) AddAndRun(name string, funcHandler interface{}, printHa
 		}
 	}(params...)
 	return task_name, false, fmt.Errorf(handlerValue.String() + " 不符合格式func(参数...)(返回...){}")
+}
+
+func (art *AsyncRealtimeTask) CAdd(funcHandler interface{}, params ...interface{}) *AsyncRealtimeTask {
+	// 是否为空
+	if art == nil {
+		return nil
+	}
+	// 是否设置了任务名
+	if art.taskName == "" {
+		return nil
+	}
+	// 添加handler
+	// 获取信号量
+	// 判断传入的是否是函数
+	handlerValue := reflect.ValueOf(funcHandler)
+	if handlerValue.Kind() != reflect.Func {
+		art.err = fmt.Errorf("传入的不是函数")
+		return art
+	}
+	// 判断是否是添加的第一个函数
+	if art.handlerNum == 0 {
+		// 判断函数的形参个数，与传入的实参个数是否相同
+		if handlerValue.Type().NumIn() != len(params) {
+			art.err = fmt.Errorf("形参与实参个数不同")
+			return nil
+		}
+		// 判断本函数的输入参数类型 是否等于 本函数形参类型
+		for k, param := range params {
+			if reflect.ValueOf(param).Kind() != handlerValue.Type().In(k).Kind() {
+				art.err = fmt.Errorf("形参与实参类型不同:%d", k)
+				return nil
+			}
+		}
+		art.handlerNum += 1
+	} else {
+		// 上一个函数的输出参数
+		lastHandlerOutKinds := art.outParamsValues[art.handlerNum-1]
+		// 判断上个函数的输出参数个数+本函数的输入参数个数是否等于本函数的形参个数
+		if len(lastHandlerOutKinds)+len(params) != handlerValue.Type().NumIn() {
+			art.err = fmt.Errorf("上个函数的输出参数个数(%d)+本函数的输入参数个数(%d) != 本函数的形参个数(%d)", len(lastHandlerOutKinds), len(params), handlerValue.Type().NumIn())
+			return art
+		}
+		// 判断上个函数的输出参数的类型+本函数的输入参数类型 是否等于 本函数形参类型
+		for k, lastOutKind := range lastHandlerOutKinds {
+			if lastOutKind != handlerValue.Type().In(k).Kind() {
+				art.err = fmt.Errorf("形参与实参类型不同:%d", k)
+				return nil
+			}
+		}
+		// 判断本函数的输入参数类型 是否等于 本函数形参类型
+		for k, param := range params {
+			if reflect.ValueOf(param).Kind() != handlerValue.Type().In(k+len(lastHandlerOutKinds)).Kind() {
+				art.err = fmt.Errorf("形参与实参类型不同:%d", k+len(lastHandlerOutKinds))
+				return nil
+			}
+		}
+		art.handlerNum += 1
+	}
+
+	// 函数输出的参数
+	outParamNum := handlerValue.Type().NumOut()
+	// 保存输出参数
+	var outKinds = make([]reflect.Kind, outParamNum)
+	for i := 0; i < outParamNum; i++ {
+		outKinds[i] = handlerValue.Type().Out(i).Kind()
+		//outKinds = append(outKinds, handlerValue.Type().Out(i).Kind())
+	}
+	art.outParamsValues = append(art.outParamsValues, outKinds)
+
+	// 添加函数
+	art.handlerValues = append(art.handlerValues, handlerValue)
+	// 添加参数
+	if len(params) == 0 {
+		art.inParamsValues = append(art.inParamsValues, []reflect.Value{})
+	} else {
+		paramValues := make([]reflect.Value, len(params))
+		for k, v := range params {
+			paramValues[k] = reflect.ValueOf(v)
+		}
+		art.inParamsValues = append(art.inParamsValues, paramValues)
+	}
+	return art
+}
+
+func (art *AsyncRealtimeTask) CDO() (err error) {
+	if art.err != nil {
+		//jlog.Error(art.err)
+		return art.err
+	}
+	//
+	art.wg.Add(1)
+	if !art.sem.TryAcquire(1) {
+		if art.verbose {
+			// 显示信息
+			jlog.Info("Block To Acquire Semaphore")
+		}
+		// 获取信号量
+		art.sem.Acquire(context.Background(), 1)
+	}
+
+	go func() {
+		defer art.wg.Done()
+		defer art.sem.Release(1)
+		lastOutValues := make([]reflect.Value, 0)
+		for k, handlerValue := range art.handlerValues {
+			lastOutValues = append(lastOutValues, art.inParamsValues[k]...)
+			lastOutValues = handlerValue.Call(lastOutValues)
+		}
+		//jlog.Info("done")
+	}()
+	return nil
+}
+
+type AsyncRealtimeTask struct {
+	*AsyncRealtime
+	taskName        string
+	handlerNum      int
+	handlerValues   []reflect.Value
+	inParamsValues  [][]reflect.Value
+	outParamsValues [][]reflect.Kind
+	err             error
+}
+
+func (ar *AsyncRealtime) Init(taskName string) *AsyncRealtimeTask {
+	return &AsyncRealtimeTask{
+		taskName:        taskName,
+		handlerValues:   make([]reflect.Value, 0),
+		inParamsValues:  make([][]reflect.Value, 0),
+		outParamsValues: make([][]reflect.Kind, 0),
+		handlerNum:      0,
+		AsyncRealtime:   ar,
+	}
 }
