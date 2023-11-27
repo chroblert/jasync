@@ -126,7 +126,7 @@ func (a *async) timeStampToStr(nanotimestamp int64) string {
 func (a *async) GetStatus(taskName string, verbose bool) {
 	// TODO 这里应该可以使用协程并发输出
 	for k, v := range a.tasks {
-		//jlog.Info(k, "Status:", a.getDspByCode(v.TaskStatus.taskStatus), ",Begin:", a.timeStampToStr(v.TaskStatus.taskBegTime), ",End:", a.timeStampToStr(v.TaskStatus.taskEndTime))
+		//jlog.Info(k, "Status:", a.getDspByCode(v.TaskStatus.taskStatusStruct), ",Begin:", a.timeStampToStr(v.TaskStatus.taskBegTime), ",End:", a.timeStampToStr(v.TaskStatus.taskEndTime))
 		jlog.Debugf("%-5s Status:%-10s, Begin:%.24s ,End:%.24s \n", k, a.getDspByCode(v.TaskStatus.taskStatus), a.timeStampToStr(v.TaskStatus.taskBegTime), a.timeStampToStr(v.TaskStatus.taskEndTime))
 	}
 
@@ -222,8 +222,8 @@ func (a *async) Add(name string, funcHandler interface{}, printHandler interface
 			//	ReqHandler:   handlerValue,
 			//	PrintHandler: reflect.ValueOf(printHandler),
 			//	Params:       make([]reflect.Value, paramNum),
-			//	TaskStatus: &taskStatus{
-			//		taskStatus:  0,
+			//	TaskStatus: &taskStatusStruct{
+			//		taskStatusStruct:  0,
 			//		taskBegTime: 0,
 			//		taskEndTime: 0,
 			//	},
@@ -245,8 +245,8 @@ func (a *async) Add(name string, funcHandler interface{}, printHandler interface
 			//	ReqHandler:   handlerValue,
 			//	PrintHandler: reflect.Value{},
 			//	Params:       make([]reflect.Value, paramNum),
-			//	TaskStatus: &taskStatus{
-			//		taskStatus:  0,
+			//	TaskStatus: &taskStatusStruct{
+			//		taskStatusStruct:  0,
 			//		taskBegTime: 0,
 			//		taskEndTime: 0,
 			//	},

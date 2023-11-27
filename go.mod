@@ -5,6 +5,7 @@ go 1.21.3
 require (
 	github.com/chroblert/jlog v0.0.9
 	github.com/hashicorp/go-uuid v1.0.3
+	golang.org/x/sync v0.5.0
 )
 
 require (

@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"github.com/chroblert/jlog"
 	"github.com/hashicorp/go-uuid"
+	"golang.org/x/sync/semaphore"
 	"reflect"
 	"sync"
 	"time"
@@ -23,7 +24,7 @@ type asyncTask struct {
 	Params       []reflect.Value
 	// 结构体中嵌套的结构体无法被正常修改
 	// 因而需要采用结构体指针的形式 refer: https://haobook.readthedocs.io/zh_CN/latest/periodical/201611/zhangan.html
-	TaskStatus  *taskStatus
+	TaskStatus  *taskStatusStruct
 	StoreResult bool // 220509: 决定是否存储结果
 }
 
@@ -43,6 +44,10 @@ type Async struct {
 	taskCurDoingCount  int
 	//是否显示进度
 	verbose bool
+	// 信号量
+	sem *semaphore.Weighted
+	//
+	wg *sync.WaitGroup
 }
 
 // New 创建一个新的异步执行对象
@@ -55,6 +60,8 @@ func New(verbose ...bool) Async {
 			mu:          new(sync.RWMutex),
 			tasksResult: make(map[string][]interface{}),
 			verbose:     true,
+			sem:         semaphore.NewWeighted(100),
+			wg:          &sync.WaitGroup{},
 		}
 	}
 	return Async{
@@ -62,6 +69,8 @@ func New(verbose ...bool) Async {
 		mu:          new(sync.RWMutex),
 		tasksResult: make(map[string][]interface{}),
 		verbose:     verbose[0],
+		sem:         semaphore.NewWeighted(100),
+		wg:          &sync.WaitGroup{},
 	}
 }
 
@@ -132,7 +141,7 @@ func (a *Async) wait(taskParaCountMaxLimit int) {
 	}
 }
 
-type taskStatus struct {
+type taskStatusStruct struct {
 	taskStatus  int   // 任务状态 0: init,1:queue,2: doing,3: done
 	taskBegTime int64 // 任务开始时间
 	taskEndTime int64 // 任务结束时间
@@ -285,7 +294,7 @@ func (a *Async) Add(name string, funcHandler interface{}, printHandler interface
 				ReqHandler:   handlerValue,
 				PrintHandler: reflect.ValueOf(printHandler),
 				Params:       make([]reflect.Value, paramNum),
-				TaskStatus: &taskStatus{
+				TaskStatus: &taskStatusStruct{
 					taskStatus:  0,
 					taskBegTime: 0,
 					taskEndTime: 0,
@@ -297,7 +306,7 @@ func (a *Async) Add(name string, funcHandler interface{}, printHandler interface
 				ReqHandler:   handlerValue,
 				PrintHandler: reflect.Value{},
 				Params:       make([]reflect.Value, paramNum),
-				TaskStatus: &taskStatus{
+				TaskStatus: &taskStatusStruct{
 					taskStatus:  0,
 					taskBegTime: 0,
 					taskEndTime: 0,
@@ -358,7 +367,7 @@ func (a *Async) AddR(name string, funcHandler interface{}, printHandler interfac
 				ReqHandler:   handlerValue,
 				PrintHandler: reflect.ValueOf(printHandler),
 				Params:       make([]reflect.Value, paramNum),
-				TaskStatus: &taskStatus{
+				TaskStatus: &taskStatusStruct{
 					taskStatus:  0,
 					taskBegTime: 0,
 					taskEndTime: 0,
@@ -370,7 +379,7 @@ func (a *Async) AddR(name string, funcHandler interface{}, printHandler interfac
 				ReqHandler:   handlerValue,
 				PrintHandler: reflect.Value{},
 				Params:       make([]reflect.Value, paramNum),
-				TaskStatus: &taskStatus{
+				TaskStatus: &taskStatusStruct{
 					taskStatus:  0,
 					taskBegTime: 0,
 					taskEndTime: 0,
