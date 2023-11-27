@@ -31,7 +31,7 @@ func NewAR(count int64, verbose ...bool) *AsyncRealtime {
 	if len(verbose) == 0 {
 		return &AsyncRealtime{
 			mu:      new(sync.RWMutex),
-			verbose: true,
+			verbose: false,
 			sem:     semaphore.NewWeighted(count),
 			wg:      &sync.WaitGroup{},
 		}
