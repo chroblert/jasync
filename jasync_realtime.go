@@ -21,6 +21,26 @@ type AsyncRealtime struct {
 	taskName string
 }
 
+// New 创建一个新的异步执行对象
+//
+// verbose: 是否显示进度条,默认显示
+func NewAR(count int64, verbose ...bool) *AsyncRealtime {
+	if len(verbose) == 0 {
+		return &AsyncRealtime{
+			mu:      new(sync.RWMutex),
+			verbose: true,
+			sem:     semaphore.NewWeighted(count),
+			wg:      &sync.WaitGroup{},
+		}
+	}
+	return &AsyncRealtime{
+		mu:      new(sync.RWMutex),
+		verbose: verbose[0],
+		sem:     semaphore.NewWeighted(count),
+		wg:      &sync.WaitGroup{},
+	}
+}
+
 //	type taskStatusStruct struct {
 //		taskStatusStruct  int   // 任务状态 0: init,1:queue,2: doing,3: done
 //		taskBegTime int64 // 任务开始时间

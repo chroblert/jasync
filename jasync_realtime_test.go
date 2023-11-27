@@ -6,7 +6,7 @@ import (
 )
 
 func TestAsync_AddAndRun(t *testing.T) {
-	a := New()
+	a := NewAR(100)
 	defer jlog.Flush()
 	//jlog.SetStoreToFile(false)
 	jlog.IsIniCreateNewLog(true)
