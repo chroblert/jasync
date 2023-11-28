@@ -22,6 +22,8 @@ type AsyncRealtime struct {
 	taskName string
 	// handler
 	HandlerValues []reflect.Value
+	// 池
+	pool *sync.Pool
 }
 
 // New 创建一个新的异步执行对象
@@ -34,6 +36,18 @@ func NewAR(count int64, verbose ...bool) *AsyncRealtime {
 			verbose: false,
 			sem:     semaphore.NewWeighted(count),
 			wg:      &sync.WaitGroup{},
+			pool: &sync.Pool{
+				New: func() interface{} {
+					return &AsyncRealtimeTask{
+						taskName:        "",
+						handlerValues:   make([]reflect.Value, 0),
+						inParamsValues:  make([][]reflect.Value, 0),
+						outParamsValues: make([][]reflect.Kind, 0),
+						handlerNum:      0,
+						AsyncRealtime:   nil,
+					}
+				},
+			},
 		}
 	}
 	return &AsyncRealtime{
@@ -41,6 +55,18 @@ func NewAR(count int64, verbose ...bool) *AsyncRealtime {
 		verbose: verbose[0],
 		sem:     semaphore.NewWeighted(count),
 		wg:      &sync.WaitGroup{},
+		pool: &sync.Pool{
+			New: func() interface{} {
+				return &AsyncRealtimeTask{
+					taskName:        "",
+					handlerValues:   make([]reflect.Value, 0),
+					inParamsValues:  make([][]reflect.Value, 0),
+					outParamsValues: make([][]reflect.Kind, 0),
+					handlerNum:      0,
+					AsyncRealtime:   nil,
+				}
+			},
+		},
 	}
 }
 
@@ -215,6 +241,8 @@ func (art *AsyncRealtimeTask) CDO() (err error) {
 	go func() {
 		defer art.wg.Done()
 		defer art.sem.Release(1)
+		defer art.pool.Put(art)
+		defer art.Clean()
 		lastOutValues := make([]reflect.Value, 0)
 		for k, handlerValue := range art.handlerValues {
 			lastOutValues = append(lastOutValues, art.inParamsValues[k]...)
@@ -223,6 +251,14 @@ func (art *AsyncRealtimeTask) CDO() (err error) {
 		//jlog.Info("done")
 	}()
 	return nil
+}
+
+func (art *AsyncRealtimeTask) Clean() {
+	art.handlerValues = art.HandlerValues[:0]
+	art.inParamsValues = art.inParamsValues[:0]
+	art.outParamsValues = art.outParamsValues[:0]
+	art.err = nil
+	art.handlerNum = 0
 }
 
 type AsyncRealtimeTask struct {
@@ -236,12 +272,9 @@ type AsyncRealtimeTask struct {
 }
 
 func (ar *AsyncRealtime) Init(taskName string) *AsyncRealtimeTask {
-	return &AsyncRealtimeTask{
-		taskName:        taskName,
-		handlerValues:   make([]reflect.Value, 0),
-		inParamsValues:  make([][]reflect.Value, 0),
-		outParamsValues: make([][]reflect.Kind, 0),
-		handlerNum:      0,
-		AsyncRealtime:   ar,
-	}
+	art := ar.pool.Get().(*AsyncRealtimeTask)
+	art.taskName = taskName
+	art.AsyncRealtime = ar
+
+	return art
 }

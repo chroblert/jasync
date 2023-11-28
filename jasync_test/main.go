@@ -27,7 +27,7 @@ import (
 //}
 
 func main() {
-	a := jasync.NewAR(900, false)
+	a := jasync.NewAR(100, false)
 	defer jlog.Flush()
 	//jlog.SetStoreToFile(false)
 	jlog.IsIniCreateNewLog(true)
