@@ -145,9 +145,17 @@ func (art *AsyncRealtimeTask) CAdd(funcHandler interface{}, params ...interface{
 	if art == nil {
 		return nil
 	}
+	if art.err != nil {
+		return art
+	}
 	// 是否设置了任务名
 	if art.taskName == "" {
-		return nil
+		name, err2 := uuid.GenerateUUID()
+		if err2 != nil {
+			art.err = err2
+			return art
+		}
+		art.taskName = name
 	}
 	// 添加handler
 	// 获取信号量
@@ -162,13 +170,13 @@ func (art *AsyncRealtimeTask) CAdd(funcHandler interface{}, params ...interface{
 		// 判断函数的形参个数，与传入的实参个数是否相同
 		if handlerValue.Type().NumIn() != len(params) {
 			art.err = fmt.Errorf("形参与实参个数不同")
-			return nil
+			return art
 		}
 		// 判断本函数的输入参数类型 是否等于 本函数形参类型
 		for k, param := range params {
 			if reflect.ValueOf(param).Kind() != handlerValue.Type().In(k).Kind() {
 				art.err = fmt.Errorf("形参与实参类型不同:%d", k)
-				return nil
+				return art
 			}
 		}
 		art.handlerNum += 1
@@ -184,14 +192,14 @@ func (art *AsyncRealtimeTask) CAdd(funcHandler interface{}, params ...interface{
 		for k, lastOutKind := range lastHandlerOutKinds {
 			if lastOutKind != handlerValue.Type().In(k).Kind() {
 				art.err = fmt.Errorf("形参与实参类型不同:%d", k)
-				return nil
+				return art
 			}
 		}
 		// 判断本函数的输入参数类型 是否等于 本函数形参类型
 		for k, param := range params {
 			if reflect.ValueOf(param).Kind() != handlerValue.Type().In(k+len(lastHandlerOutKinds)).Kind() {
 				art.err = fmt.Errorf("形参与实参类型不同:%d", k+len(lastHandlerOutKinds))
-				return nil
+				return art
 			}
 		}
 		art.handlerNum += 1
@@ -223,6 +231,9 @@ func (art *AsyncRealtimeTask) CAdd(funcHandler interface{}, params ...interface{
 }
 
 func (art *AsyncRealtimeTask) CDO() (err error) {
+	if art == nil {
+		return fmt.Errorf("art对象为nil")
+	}
 	if art.err != nil {
 		//jlog.Error(art.err)
 		return art.err
