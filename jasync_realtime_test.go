@@ -27,13 +27,13 @@ func TestAsync_AddAndRun(t *testing.T) {
 }
 
 func TestAsync_ChainAdd(t *testing.T) {
-	a := NewAR(10, true)
+	a := NewAR(1000, true)
 	defer jlog.Flush()
 	//jlog.SetStoreToFile(false)
 	jlog.IsIniCreateNewLog(true)
-	jlog.SetUseConsole(false)
-	bar := progressbar.Default(100000)
-	for i := 0; i < 100000; i++ {
+	jlog.SetUseConsole(true)
+	bar := progressbar.Default(1000)
+	for i := 0; i < 1000; i++ {
 		err := a.Init(fmt.Sprintf("task-%d", i)).CAdd(func(i int) string {
 			jlog.Infof("func-1:%d\n", i)
 			return fmt.Sprintf("2222-%d", i)
@@ -47,5 +47,14 @@ func TestAsync_ChainAdd(t *testing.T) {
 			jlog.Error(err)
 		}
 	}
+	//a2, _ := context.WithCancel(context.Background())
+	//a2.Done()
+	//select {
+	//case <-a.Done():
+	//	jlog.Info("done")
+	//	break
+	//}
+	jlog.Infof("wait")
 	a.Wait()
+	jlog.Infof("end")
 }

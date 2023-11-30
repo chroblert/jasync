@@ -31,9 +31,9 @@ func main() {
 	defer jlog.Flush()
 	//jlog.SetStoreToFile(false)
 	jlog.IsIniCreateNewLog(true)
-	jlog.SetUseConsole(false)
-	bar := progressbar.Default(10000)
-	for i := 0; i < 10000; i++ {
+	jlog.SetUseConsole(true)
+	bar := progressbar.Default(1000)
+	for i := 0; i < 1000; i++ {
 		err := a.Init(fmt.Sprintf("task-%d", i)).CAdd(func(i int) string {
 			jlog.Infof("func-1:%d\n", i)
 			return fmt.Sprintf("2222-%d", i)
@@ -47,5 +47,8 @@ func main() {
 			jlog.Error(err)
 		}
 	}
-	a.Wait()
+	select {
+	case <-a.Done():
+		jlog.Info("done")
+	}
 }

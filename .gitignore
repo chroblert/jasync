@@ -2,3 +2,5 @@
 *.exe
 *.csv
 *.txt
+*.iml
+*.xml

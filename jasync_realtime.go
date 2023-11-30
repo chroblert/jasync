@@ -78,6 +78,18 @@ func NewAR(count int64, verbose ...bool) *AsyncRealtime {
 func (ar *AsyncRealtime) Wait() {
 	ar.wg.Wait()
 }
+
+func (ar *AsyncRealtime) Done() <-chan struct{} {
+	ar.wg.Wait()
+	var ch = make(chan struct{})
+	var sendOnly chan<- struct{} = ch
+	var revOnly <-chan struct{} = ch
+	go func() {
+		sendOnly <- struct{}{}
+	}()
+	return revOnly
+}
+
 func (ar *AsyncRealtime) AddAndRun(name string, funcHandler interface{}, printHandler interface{}, params ...interface{}) (task_name string, b_success bool, err error) {
 	ar.wg.Add(1)
 	if name == "" {
