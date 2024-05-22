@@ -1,6 +1,6 @@
 module github.com/chroblert/jasync
 
-go 1.21.3
+go 1.16
 
 require (
 	github.com/chroblert/jlog v0.0.9
