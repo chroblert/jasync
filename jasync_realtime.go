@@ -8,6 +8,7 @@ import (
 	"golang.org/x/sync/semaphore"
 	"reflect"
 	"sync"
+	"time"
 )
 
 // Async 异步执行对象
@@ -242,13 +243,19 @@ func (art *AsyncRealtimeTask) CAdd(funcHandler interface{}, params ...interface{
 	return art
 }
 
-func (art *AsyncRealtimeTask) CDO() (err error) {
+// CDO 如果设置了waitTime，则等待指定的时间后，才进行相关操作
+func (art *AsyncRealtimeTask) CDO(waitTime ...time.Duration) (err error) {
 	if art == nil {
 		return fmt.Errorf("art对象为nil")
 	}
 	if art.err != nil {
 		//jlog.Error(art.err)
 		return art.err
+	}
+
+	// 240526 等待时间
+	if len(waitTime) > 0 {
+		time.Sleep(waitTime[0])
 	}
 	//
 	art.wg.Add(1)

@@ -39,10 +39,10 @@ func main() {
 			return fmt.Sprintf("2222-%d", i)
 		}, i).CAdd(func(s string, i, d int) {
 			jlog.Infof("func-2:%s:%d\n", s, i)
-			time.Sleep(100 * time.Millisecond)
+			//time.Sleep(100 * time.Millisecond)
 		}, i, 4).CAdd(func() {
 			bar.Add(1)
-		}).CDO()
+		}).CDO(1 * time.Millisecond)
 		if err != nil {
 			jlog.Error(err)
 		}
