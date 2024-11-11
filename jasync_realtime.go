@@ -17,6 +17,8 @@ type AsyncRealtime struct {
 	verbose bool
 	// 信号量
 	sem *Weighted
+	// total
+	maxConcurrency int64
 	//
 	wg       *sync.WaitGroup
 	taskName string
@@ -30,12 +32,34 @@ type AsyncRealtime struct {
 //
 // verbose: 是否显示进度条,默认显示
 func NewAR(count int64, verbose ...bool) *AsyncRealtime {
+	var ar *AsyncRealtime
 	if len(verbose) == 0 {
-		return &AsyncRealtime{
-			mu:      new(sync.RWMutex),
-			verbose: false,
-			sem:     NewWeighted(count),
-			wg:      &sync.WaitGroup{},
+		ar = &AsyncRealtime{
+			mu:             new(sync.RWMutex),
+			verbose:        false,
+			sem:            NewWeighted(count),
+			maxConcurrency: count,
+			wg:             &sync.WaitGroup{},
+			pool: &sync.Pool{
+				New: func() interface{} {
+					return &AsyncRealtimeTask{
+						taskName:        "",
+						handlerValues:   make([]reflect.Value, 0),
+						inParamsValues:  make([][]reflect.Value, 0),
+						outParamsValues: make([][]reflect.Kind, 0),
+						handlerNum:      0,
+						AsyncRealtime:   nil,
+					}
+				},
+			},
+		}
+	} else {
+		ar = &AsyncRealtime{
+			mu:             new(sync.RWMutex),
+			verbose:        verbose[0],
+			sem:            NewWeighted(count),
+			maxConcurrency: count,
+			wg:             &sync.WaitGroup{},
 			pool: &sync.Pool{
 				New: func() interface{} {
 					return &AsyncRealtimeTask{
@@ -50,24 +74,23 @@ func NewAR(count int64, verbose ...bool) *AsyncRealtime {
 			},
 		}
 	}
-	return &AsyncRealtime{
-		mu:      new(sync.RWMutex),
-		verbose: verbose[0],
-		sem:     NewWeighted(count),
-		wg:      &sync.WaitGroup{},
-		pool: &sync.Pool{
-			New: func() interface{} {
-				return &AsyncRealtimeTask{
-					taskName:        "",
-					handlerValues:   make([]reflect.Value, 0),
-					inParamsValues:  make([][]reflect.Value, 0),
-					outParamsValues: make([][]reflect.Kind, 0),
-					handlerNum:      0,
-					AsyncRealtime:   nil,
+	// verbose时，开启输出
+	if ar.verbose {
+		print1 := func() {
+			cur := ar.sem.GetCur()
+			fmt.Printf("%d/%d\n", cur, ar.maxConcurrency)
+		}
+		interval := time.Second * 10
+		go func() {
+			for {
+				select {
+				case <-time.After(interval):
+					print1()
 				}
-			},
-		},
+			}
+		}()
 	}
+	return ar
 }
 
 //	type taskStatusStruct struct {
