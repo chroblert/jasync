@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/chroblert/jlog"
 	"github.com/hashicorp/go-uuid"
-	"golang.org/x/sync/semaphore"
 	"reflect"
 	"sync"
 	"time"
@@ -17,7 +16,7 @@ type AsyncRealtime struct {
 	//是否显示进度
 	verbose bool
 	// 信号量
-	sem *semaphore.Weighted
+	sem *Weighted
 	//
 	wg       *sync.WaitGroup
 	taskName string
@@ -35,7 +34,7 @@ func NewAR(count int64, verbose ...bool) *AsyncRealtime {
 		return &AsyncRealtime{
 			mu:      new(sync.RWMutex),
 			verbose: false,
-			sem:     semaphore.NewWeighted(count),
+			sem:     NewWeighted(count),
 			wg:      &sync.WaitGroup{},
 			pool: &sync.Pool{
 				New: func() interface{} {
@@ -54,7 +53,7 @@ func NewAR(count int64, verbose ...bool) *AsyncRealtime {
 	return &AsyncRealtime{
 		mu:      new(sync.RWMutex),
 		verbose: verbose[0],
-		sem:     semaphore.NewWeighted(count),
+		sem:     NewWeighted(count),
 		wg:      &sync.WaitGroup{},
 		pool: &sync.Pool{
 			New: func() interface{} {
